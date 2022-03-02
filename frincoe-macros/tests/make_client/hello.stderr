@@ -1,0 +1,28 @@
+error: hello(& self, name : & str) -> std::io::Result<()>
+  --> tests/make_client/hello.rs:7:9
+   |
+7  | /         compile_error!(concat!(
+8  | |             stringify!($func),
+9  | |             stringify!($args),
+10 | |             " -> ",
+11 | |             stringify!($ret)
+12 | |         ));
+   | |__________^
+...
+18 |   make_client!(impl "interfaces.rs"::SayHello for Target in Error);
+   |   ---------------------------------------------------------------- in this macro invocation
+   |
+   = note: this error originates in the macro `Error` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0046]: not all trait items implemented, missing: `hello`
+  --> tests/make_client/hello.rs:18:1
+   |
+18 | make_client!(impl "interfaces.rs"::SayHello for Target in Error);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `hello` in implementation
+   |
+  ::: tests/make_client/interfaces.rs
+   |
+   |     fn hello(&self, name: &str) -> std::io::Result<()>;
+   |     --------------------------------------------------- `hello` from trait
+   |
+   = note: this error originates in the macro `make_client` (in Nightly builds, run with -Z macro-backtrace for more info)

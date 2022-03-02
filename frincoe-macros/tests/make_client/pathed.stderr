@@ -1,0 +1,24 @@
+error[E0382]: borrow of moved value: `t`
+  --> tests/make_client/pathed.rs:22:5
+   |
+20 |     let t = Target {};
+   |         - move occurs because `t` has type `Target`, which does not implement the `Copy` trait
+21 |     t.f1(1);
+   |       ----- `t` moved due to this method call
+22 |     t.f2(123);
+   |     ^^^^^^^^^ value borrowed here after move
+   |
+note: this function takes ownership of the receiver `self`, which moves `t`
+  --> tests/make_client/interfaces.rs
+   |
+   |         fn f1(self, x: i32) -> u32;
+   |               ^^^^
+
+error[E0596]: cannot borrow `t` as mutable, as it is not declared as mutable
+  --> tests/make_client/pathed.rs:23:5
+   |
+20 |     let t = Target {};
+   |         - help: consider changing this to be mutable: `mut t`
+...
+23 |     t.f3(1.0, 1.0);
+   |     ^^^^^^^^^^^^^^ cannot borrow as mutable
