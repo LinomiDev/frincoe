@@ -1,0 +1,5 @@
+max_width = 120
+newline_style = "Unix"
+blank_lines_upper_bound = 3
+imports_granularity = "Module"
+group_imports = "StdExternalCrate"
