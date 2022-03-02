@@ -1,0 +1,8 @@
+[package]
+name = "frincoe"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+frincoe-rpc = { version = "0.1", path = "../frincoe-rpc" }
+frincoe-macros = { version = "0.1", path = "../frincoe-macros", features = ["full"] }

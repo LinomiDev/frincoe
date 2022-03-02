@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "frincoe-macros",
+    "frincoe-rpc",
+    "frincoe",
+]
