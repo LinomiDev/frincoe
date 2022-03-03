@@ -3,7 +3,7 @@ use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, LitStr, Path, Token, TraitItem, Type};
 
-use crate::helpers::read_trait;
+
 
 struct ClientArgs {
     pub adapter: Ident,
@@ -48,7 +48,10 @@ impl Parse for ClientArgs {
     }
 }
 
-pub fn make_client_impl(args: TokenStream) -> TokenStream {
+pub fn make_client_impl(
+    args: TokenStream,
+    read_trait: impl FnOnce(LitStr, &Path) -> Option<Vec<TraitItem>>,
+) -> TokenStream {
     let ClientArgs {
         adapter,
         filename,
@@ -77,5 +80,62 @@ pub fn make_client_impl(args: TokenStream) -> TokenStream {
         impl #modpath for #target {
             #(#content)*
         }
+    }
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use proc_macro2::TokenStream;
+    use quote::quote;
+    use syn::{ItemTrait, LitStr, Path, TraitItem};
+
+    use crate::make_client::make_client_impl;
+
+    fn verify_input(
+        src: TokenStream,
+        name: String,
+        path: TokenStream,
+    ) -> impl FnOnce(LitStr, &Path) -> Option<Vec<TraitItem>> {
+        let result: ItemTrait = syn::parse2(src).expect("Should be a vaild trait");
+        let result = result.items;
+        let path: Path = syn::parse2(path).expect("Should be a vaild path");
+        move |inname, inpath| {
+            assert_eq!(inname.value(), name);
+            assert_eq!(
+                inpath.segments.iter().map(|x| x.ident.to_string()).collect::<Vec<_>>(),
+                path.segments.iter().map(|x| x.ident.to_string()).collect::<Vec<_>>()
+            );
+            Some(result)
+        }
+    }
+
+    #[test]
+    fn verify_some() {
+        let func = verify_input(
+            quote! {
+                trait TestTrait {
+                    fn f1(self, a1: i32) -> i64;
+                    fn f2(&mut self);
+                }
+            },
+            "empty_trait".to_string(),
+            quote! {Pathed::TestTrait},
+        );
+        assert_eq!(
+            make_client_impl(
+                quote! { impl "empty_trait"::Pathed::TestTrait for Pathed::TestStruct<U, R> in empty },
+                func
+            )
+            .to_string(),
+            quote! {
+                impl Pathed::TestTrait for Pathed::TestStruct<U, R> {
+                    empty!(fn f1(self, a1: i32) -> i64;);
+                    empty!(fn f2(&mut self););
+                }
+            }
+            .to_string()
+        );
     }
 }

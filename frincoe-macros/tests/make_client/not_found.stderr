@@ -1,5 +1,0 @@
-error: not found the trait with the given path
- --> tests/make_client/not_found.rs:3:36
-  |
-3 | make_client!(impl "interfaces.rs"::NotExisted for Target in test);
-  |                                    ^^^^^^^^^^

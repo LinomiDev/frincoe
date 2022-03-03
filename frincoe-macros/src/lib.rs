@@ -10,6 +10,7 @@ See [the document of frincoe-rpc](../frincoe_rpc/index.html) for detailed docume
 
 use proc_macro::TokenStream;
 mod helpers;
+
 mod make_client;
 use make_client::make_client_impl;
 
@@ -38,5 +39,5 @@ this may be solved in later versions.
 */
 #[proc_macro]
 pub fn make_client(args: TokenStream) -> TokenStream {
-    make_client_impl(args.into()).into()
+    make_client_impl(args.into(), helpers::read_trait).into()
 }
