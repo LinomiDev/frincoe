@@ -4,12 +4,20 @@ Macro definitions for frincoe-rpc.
 See [the document of frincoe-rpc](../frincoe_rpc/index.html) for detailed document.
 */
 
+
+
 #![feature(proc_macro_diagnostic)]
 #![feature(proc_macro_span)]
 #![feature(proc_macro_expand)]
+#![feature(doc_cfg)]
+#![feature(extend_one)]
+
+
 
 use proc_macro::TokenStream;
 mod helpers;
+
+
 
 mod make_client;
 use make_client::make_client_impl;
@@ -40,4 +48,30 @@ this may be solved in later versions.
 #[proc_macro]
 pub fn make_client(args: TokenStream) -> TokenStream {
     make_client_impl(args.into(), helpers::read_trait).into()
+}
+
+
+
+mod dispatch_cable;
+use dispatch_cable::dispatch_cable_impl;
+
+/**
+Adapter for [`make_client!`] to make passive [`Cable`]s.
+
+Apart from that `Self` should impl [`Cable`],
+the return type `T`s of the methods should be `Extend<T> + Default`
+to allow the macro to pack them as the final result.
+
+Other declarations besides methods in the trait are ignored,
+if it's needed, use a specialization (i.e. `default const ...` etc.) to provide them a value.
+
+For detailed document, see document of [frincoe-rpc](../frincoe_rpc/index.html) and [`Cable`].
+
+[`Cable`]: ../frincoe/cable/trait.Cable.html
+ */
+#[cfg(feature = "adapters")]
+#[doc(cfg(any(feature = "adapters", feature = "full")))]
+#[proc_macro]
+pub fn dispatch_cable(args: TokenStream) -> TokenStream {
+    dispatch_cable_impl(args.into()).into()
 }
