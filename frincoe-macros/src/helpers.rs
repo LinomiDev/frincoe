@@ -1,8 +1,13 @@
 use std::io::Read;
 
 use proc_macro::{Diagnostic, Level};
+use proc_macro2::TokenStream;
+use quote::quote;
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{FnArg, Item, LitStr, Pat, PatType, Path, TraitItem};
+use syn::{
+    Attribute, FnArg, Generics, Ident, Item, LitStr, Pat, PatType, Path, ReturnType, Signature, Token, TraitItem,
+};
 
 
 
@@ -96,5 +101,40 @@ pub fn is_self(arg: &FnArg) -> bool {
                 false
             }
         }
+    }
+}
+
+
+
+pub struct ExtractedSignature {
+    pub modifiers: TokenStream,
+    pub ident: Ident,
+    pub generics: Generics,
+    pub inputs: Punctuated<FnArg, Token![,]>,
+    pub output: ReturnType,
+}
+
+pub fn extract_signature(attrs: Vec<Attribute>, sig: Signature) -> ExtractedSignature {
+    let mut modifiers = quote! { #(#attrs)* };
+    if sig.constness.is_some() {
+        modifiers.extend_one(quote! { const });
+    }
+    if sig.asyncness.is_some() {
+        modifiers.extend_one(quote! { async });
+    }
+    if sig.unsafety.is_some() {
+        modifiers.extend_one(quote! { unsafe });
+    }
+    if let Some(abi) = sig.abi {
+        let span = abi.span();
+        let name = abi.name.unwrap_or_else(|| LitStr::new("", span));
+        modifiers.extend_one(quote! { extern #name });
+    }
+    ExtractedSignature {
+        modifiers,
+        ident: sig.ident,
+        generics: sig.generics,
+        inputs: sig.inputs,
+        output: sig.output,
     }
 }

@@ -1,30 +1,16 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::spanned::Spanned;
-use syn::{FnArg, LitStr, ReturnType, Signature, TraitItem, TraitItemMethod};
+use syn::{FnArg, ReturnType, TraitItem, TraitItemMethod};
 
-use crate::helpers::is_self;
+use crate::helpers::{extract_signature, is_self, ExtractedSignature};
 
 
 
 pub fn dispatch_cable_impl(args: TokenStream) -> TokenStream {
     // Try to parse the item as a header, report other elements as errors
     let TraitItemMethod {
-        attrs: _,
-        sig:
-            Signature {
-                constness,
-                asyncness,
-                unsafety,
-                abi,
-                fn_token: _,
-                ident,
-                generics,
-                paren_token: _,
-                inputs,
-                variadic: _,
-                output,
-            },
+        attrs,
+        sig,
         default: _,
         semi_token: _,
     } = match syn::parse2::<TraitItem>(args) {
@@ -35,22 +21,16 @@ pub fn dispatch_cable_impl(args: TokenStream) -> TokenStream {
         Err(e) => return e.to_compile_error(),
     };
 
-    // Process the modifiers
-    let mut modifiers = quote! {};
-    if constness.is_some() {
-        modifiers.extend_one(quote! { const });
-    }
-    if asyncness.is_some() {
-        modifiers.extend_one(quote! { async });
-    }
-    if unsafety.is_some() {
-        modifiers.extend_one(quote! { unsafe });
-    }
-    if let Some(abi) = abi {
-        let span = abi.span();
-        let name = abi.name.unwrap_or_else(|| LitStr::new("", span));
-        modifiers.extend_one(quote! { extern #name });
-    }
+    // Process the modifiers and extract the signature
+    let ExtractedSignature {
+        modifiers,
+        ident,
+        generics,
+        inputs,
+        output,
+    } = extract_signature(attrs, sig);
+
+    // Process the arguments, extract to names
     let args = match inputs.first() {
         Some(car) if is_self(car) => inputs.iter().skip(1).map(|x| match x {
             FnArg::Receiver(_) => unreachable!(),
@@ -62,6 +42,8 @@ pub fn dispatch_cable_impl(args: TokenStream) -> TokenStream {
             }
         }
     };
+
+    // Process the return type and function body
     let typespec = match output {
         ReturnType::Default => quote! {},
         ReturnType::Type(_, ref ty) => quote! { -> #ty where #ty: Extend<#ty> + Default },
