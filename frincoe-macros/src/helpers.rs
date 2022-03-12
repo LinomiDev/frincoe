@@ -2,7 +2,9 @@ use std::io::Read;
 
 use proc_macro::{Diagnostic, Level};
 use syn::spanned::Spanned;
-use syn::{Item, LitStr, Path, TraitItem};
+use syn::{FnArg, Item, LitStr, Pat, PatType, Path, TraitItem};
+
+
 
 macro_rules! report_error (
     ( $var:ident, $msg:expr ) => {
@@ -12,6 +14,8 @@ macro_rules! report_error (
         }
     }
 );
+
+
 
 fn read_file(fname: &str) -> Result<syn::File, Box<dyn std::error::Error>> {
     let mut handle = std::fs::File::open(fname)?;
@@ -72,5 +76,25 @@ pub fn read_trait(fname: LitStr, srcpath: &Path) -> Option<Vec<TraitItem>> {
     match next {
         Some(v) => Some(v),
         None => report_error!(srcpath, "not found the trait with the given path"),
+    }
+}
+
+
+
+pub fn is_self(arg: &FnArg) -> bool {
+    match arg {
+        FnArg::Receiver(_) => true,
+        FnArg::Typed(PatType {
+            attrs: _,
+            pat,
+            colon_token: _,
+            ty: _,
+        }) => {
+            if let Pat::Ident(id) = &**pat {
+                id.ident == "self"
+            } else {
+                false
+            }
+        }
     }
 }

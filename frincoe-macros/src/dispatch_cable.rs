@@ -1,7 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{FnArg, LitStr, Pat, PatIdent, PatType, ReturnType, Signature, TraitItem, TraitItemMethod};
+use syn::{FnArg, LitStr, ReturnType, Signature, TraitItem, TraitItemMethod};
+
+use crate::helpers::is_self;
 
 
 
@@ -50,40 +52,14 @@ pub fn dispatch_cable_impl(args: TokenStream) -> TokenStream {
         modifiers.extend_one(quote! { extern #name });
     }
     let args = match inputs.first() {
-        None => return quote! { compile_error!(""); },
-        Some(car) => {
-            match car {
-                FnArg::Receiver(_) => (),
-                FnArg::Typed(PatType {
-                    attrs: _,
-                    pat,
-                    colon_token: _,
-                    ty: _,
-                }) if match &**pat {
-                    Pat::Ident(PatIdent {
-                        attrs: _,
-                        by_ref: _,
-                        mutability: _,
-                        ident,
-                        subpat: _,
-                    }) => ident == "self",
-                    _ => false,
-                } => {}
-                _ => {
-                    return quote! {
-                        compile_error!("Cable methods must be object method to iterate over the clients");
-                    }
-                }
+        Some(car) if is_self(car) => inputs.iter().skip(1).map(|x| match x {
+            FnArg::Receiver(_) => unreachable!(),
+            FnArg::Typed(val) => val.pat.to_owned(),
+        }),
+        _ => {
+            return quote! {
+                compile_error!("Cable methods must be object method to iterate over the clients");
             }
-            inputs.iter().skip(1).map(|x| match x {
-                FnArg::Receiver(_) => unreachable!(),
-                FnArg::Typed(PatType {
-                    attrs: _,
-                    pat,
-                    colon_token: _,
-                    ty: _,
-                }) => pat,
-            })
         }
     };
     let typespec = match output {
@@ -179,9 +155,19 @@ mod tests {
             }
             .to_string(),
         );
-        // Static method
+    }
+
+    #[test]
+    fn errornous() {
         assert_eq!(
             dispatch_cable_impl(quote! { fn f(s: i32); }).to_string(),
+            quote! {
+                compile_error!("Cable methods must be object method to iterate over the clients");
+            }
+            .to_string(),
+        );
+        assert_eq!(
+            dispatch_cable_impl(quote! { fn f(); }).to_string(),
             quote! {
                 compile_error!("Cable methods must be object method to iterate over the clients");
             }
