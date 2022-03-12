@@ -4,8 +4,6 @@ Macro definitions for frincoe-rpc.
 See [the document of frincoe-rpc](../frincoe_rpc/index.html) for detailed document.
 */
 
-
-
 #![feature(proc_macro_diagnostic)]
 #![feature(proc_macro_span)]
 #![feature(proc_macro_expand)]
@@ -19,17 +17,17 @@ mod helpers;
 
 
 
-mod make_client;
-use make_client::make_client_impl;
+mod inject_implement;
+use inject_implement::inject_implement_impl;
 
 /**
-Make the target struct a client of given trait from specified adapter.
+Inject the implement of a trait to a type using specified adapter.
 
 The path of the source trait will be relative to the source file where the macro is invoked.
 
 Grammar:
 ```ignore
-make_client!(impl "path/to/declaration/file"::Trait::Path
+inject_implement!(impl "path/to/declaration/file"::Trait::Path
     [as Actual::Trait::Path] for TargetClient in adapter[(args)]);
 ```
 
@@ -48,8 +46,8 @@ Currently the trait can only be a bare trait without any qualifications,
 this may be solved in later versions.
 */
 #[proc_macro]
-pub fn make_client(args: TokenStream) -> TokenStream {
-    make_client_impl(args.into(), helpers::read_trait).into()
+pub fn inject_implement(args: TokenStream) -> TokenStream {
+    inject_implement_impl(args.into(), helpers::read_trait).into()
 }
 
 
@@ -58,7 +56,7 @@ mod dispatch_cable;
 use dispatch_cable::dispatch_cable_impl;
 
 /**
-Adapter for [`make_client!`] to make passive [`Cable`]s.
+Adapter for [`inject_implement!`] to make passive [`Cable`]s.
 
 Apart from that `Self` should impl [`Cable`],
 the return type `T`s of the methods should be `Extend<T> + Default`
@@ -73,7 +71,7 @@ and document of [`Cable`] for on which the adapter is used.
 [`Cable`]: ../frincoe/cable/trait.Cable.html
  */
 #[cfg(feature = "adapters")]
-#[doc(cfg(any(feature = "adapters", feature = "full")))]
+#[doc(cfg(feature = "adapters"))]
 #[proc_macro]
 pub fn dispatch_cable(args: TokenStream) -> TokenStream {
     dispatch_cable_impl(args.into()).into()

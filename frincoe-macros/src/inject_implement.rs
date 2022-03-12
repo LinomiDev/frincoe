@@ -55,7 +55,7 @@ impl Parse for ClientArgs {
     }
 }
 
-pub fn make_client_impl(
+pub fn inject_implement_impl(
     args: TokenStream,
     read_trait: impl FnOnce(LitStr, &Path) -> Option<Vec<TraitItem>>,
 ) -> TokenStream {
@@ -105,7 +105,7 @@ mod tests {
     use quote::quote;
     use syn::{ItemTrait, LitStr, Path, TraitItem};
 
-    use crate::make_client::make_client_impl;
+    use super::inject_implement_impl;
 
     fn verify_input(
         src: TokenStream,
@@ -138,7 +138,7 @@ mod tests {
             quote! {Pathed::TestTrait},
         );
         assert_eq!(
-            make_client_impl(
+            inject_implement_impl(
                 quote! { impl "emptied"::Pathed::TestTrait for Pathed::TestStruct<U, R> in empty },
                 func
             )
@@ -165,7 +165,7 @@ mod tests {
             quote! {T},
         );
         assert_eq!(
-            make_client_impl(quote! { impl "T"::T for T in pr(a impl b) }, func).to_string(),
+            inject_implement_impl(quote! { impl "T"::T for T in pr(a impl b) }, func).to_string(),
             quote! {
                 impl T for T {
                     pr!(a impl b; fn f(););
