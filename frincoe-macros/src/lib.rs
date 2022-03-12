@@ -76,3 +76,25 @@ and document of [`Cable`] for on which the adapter is used.
 pub fn dispatch_cable(args: TokenStream) -> TokenStream {
     dispatch_cable_impl(args.into()).into()
 }
+
+
+
+mod forward_sub;
+use forward_sub::forward_sub_impl;
+
+/**
+Adapter for [`inject_implement!`] that forwards the corresponding members of a specified member.
+
+An extra argument specifying which member is used should be specified;
+in some occasions when implementing static matters, like static methods, types and constants,
+the type of the member should be given as well with the form `member: Type`.
+
+Defaultly, only methods are forwarded, and other items of the trait can be provided by specializing.
+Append `type` and/or `const` to the argument list to have types and/or constants forwarded.
+ */
+#[cfg(feature = "adapters")]
+#[doc(cfg(feature = "adapters"))]
+#[proc_macro]
+pub fn forward_sub(args: TokenStream) -> TokenStream {
+    forward_sub_impl(args.into()).into()
+}
