@@ -1,7 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::quote;
+use syn::buffer::Cursor;
 use syn::parse::{Parse, ParseStream};
-use syn::{Ident, LitStr, Path, Token, TraitItem, Type};
+use syn::{parenthesized, Ident, LitStr, Path, Token, TraitItem, Type};
 
 
 
@@ -11,6 +12,7 @@ struct ClientArgs {
     pub srcpath: Path,
     pub modpath: Option<Path>,
     pub target: Type,
+    pub extargs: Option<TokenStream>,
 }
 
 impl Parse for ClientArgs {
@@ -34,16 +36,21 @@ impl Parse for ClientArgs {
         // in adapter
         input.parse::<Token![in]>()?;
         let adapter: Ident = input.parse()?;
-        // )
-        if !input.is_empty() {
-            return Err(input.error("Wrong syntax for make_client: nothing should be following the struct"));
-        }
+        // [(args)]
+        let extargs = if !input.is_empty() {
+            let argbuf;
+            parenthesized!(argbuf in input);
+            Some(argbuf.step(|cursor| Ok((cursor.token_stream(), Cursor::empty())))?)
+        } else {
+            None
+        };
         Ok(Self {
             adapter,
             filename,
             srcpath,
             modpath,
             target,
+            extargs,
         })
     }
 }
@@ -58,9 +65,16 @@ pub fn make_client_impl(
         srcpath,
         modpath,
         target,
+        extargs,
     } = match syn::parse2(args) {
         Ok(v) => v,
-        Err(err) => return err.to_compile_error(),
+        Err(err) => return err.into_compile_error(),
+    };
+
+    let extargs = if extargs.is_some() {
+        Some(quote! { #extargs ; })
+    } else {
+        None
     };
 
     // Generate the injecting content
@@ -71,7 +85,7 @@ pub fn make_client_impl(
     .iter()
     .map(|item| match item {
         TraitItem::Macro(_) => panic!("macros in trait declaration are not currently supported"),
-        value => quote! { #adapter !(#value); },
+        value => quote! { #adapter !(#extargs #value); },
     })
     .collect::<Vec<_>>();
     let modpath = modpath.unwrap_or(srcpath);
@@ -112,7 +126,7 @@ mod tests {
     }
 
     #[test]
-    fn verify_some() {
+    fn invoked_actually() {
         let func = verify_input(
             quote! {
                 trait TestTrait {
@@ -120,12 +134,12 @@ mod tests {
                     fn f2(&mut self);
                 }
             },
-            "empty_trait".to_string(),
+            "emptied".to_string(),
             quote! {Pathed::TestTrait},
         );
         assert_eq!(
             make_client_impl(
-                quote! { impl "empty_trait"::Pathed::TestTrait for Pathed::TestStruct<U, R> in empty },
+                quote! { impl "emptied"::Pathed::TestTrait for Pathed::TestStruct<U, R> in empty },
                 func
             )
             .to_string(),
@@ -137,5 +151,39 @@ mod tests {
             }
             .to_string()
         );
+    }
+
+    #[test]
+    fn extra_args() {
+        let func = verify_input(
+            quote! {
+                trait T {
+                    fn f();
+                }
+            },
+            "T".to_string(),
+            quote! {T},
+        );
+        assert_eq!(
+            make_client_impl(quote! { impl "T"::T for T in pr(a impl b) }, func).to_string(),
+            quote! {
+                impl T for T {
+                    pr!(a impl b; fn f(););
+                }
+            }
+            .to_string()
+        );
+    }
+
+    #[test]
+    fn trailing() {
+        use super::ClientArgs;
+        match syn::parse2::<ClientArgs>(quote! { impl "T"::T for T in qwq trailing }) {
+            Ok(_) => panic!("Shouldn't pass compilation!"),
+            Err(e) => assert_eq!(
+                e.to_compile_error().to_string(),
+                quote! { compile_error! { "expected parentheses" } }.to_string()
+            ),
+        }
     }
 }
