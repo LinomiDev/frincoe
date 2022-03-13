@@ -120,7 +120,7 @@ fn proc_method(attrs: Vec<Attribute>, sig: Signature, member: Ident, typename: O
         FnArg::Receiver(_) => unreachable!(),
         FnArg::Typed(val) => val.pat.to_owned(),
     };
-    let (prefix, args) = if inputs.first().map(|x| is_self(x)).unwrap_or(false) {
+    let (prefix, args) = if inputs.first().map(is_self).unwrap_or(false) {
         (quote! { self.#member . }, inputs.iter().skip(1).map(trans))
     } else if typename.is_some() {
         (quote! { #typename :: }, inputs.iter().skip(0).map(trans))

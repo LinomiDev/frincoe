@@ -27,7 +27,7 @@ The path of the source trait will be relative to the source file where the macro
 
 Grammar:
 ```ignore
-inject_implement!(impl "path/to/declaration/file"::Trait::Path
+inject_implement!(impl [{ trait Definition {} } | "path/to/definition/file"::Trait::Path]
     [as Actual::Trait::Path] for TargetClient in adapter[(args)]);
 ```
 
@@ -38,16 +38,17 @@ If extra arguments are present, the adapter will be invoked with this format: `a
 Note that all the items comes with a semicolon at the end.
 
 The `as` part is for when the trait was of other path than the path after the filename.
-You may omit it, and the path after `impl` will be used.
-Unfortunately, the full path including the file is still needed,
-since our implement needs to see the trait definition to generate code.
+If omitted, it will be inferred to be the same as the its path in the definition file,
+or the name in the definition.
+Unfortunately, the definition of the trait is needed however,
+or there's no way to know the items of the trait.
 
 Currently the trait can only be a bare trait without any qualifications,
 this may be solved in later versions.
 */
 #[proc_macro]
 pub fn inject_implement(args: TokenStream) -> TokenStream {
-    inject_implement_impl(args.into(), helpers::read_trait).into()
+    inject_implement_impl(args.into()).into()
 }
 
 
