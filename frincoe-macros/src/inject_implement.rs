@@ -7,7 +7,7 @@ use syn::buffer::Cursor;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::token::Brace;
-use syn::{braced, parenthesized, Ident, Item, ItemTrait, LitStr, Path, Token, TraitItem, Type};
+use syn::{braced, parenthesized, Generics, Ident, Item, ItemTrait, LitStr, Path, Token, TraitItem, Type, WhereClause};
 
 
 
@@ -17,18 +17,26 @@ enum TraitProvider {
 }
 
 struct ClientArgs {
+    pub generics: Option<Generics>,
     pub adapter: Ident,
     pub source: TraitProvider,
     pub srcpath: Path,
     pub modpath: Option<Path>,
     pub target: Type,
     pub extargs: Option<TokenStream>,
+    pub predicates: Option<WhereClause>,
 }
 
 impl Parse for ClientArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        // impl ["path"::mod::trait | { code }] ...
+        // impl[<Generics>] ...
         input.parse::<Token![impl]>()?;
+        let generics = if input.peek(Token![<]) {
+            Some(input.parse()?)
+        } else {
+            None
+        };
+        // ["path"::mod::trait | { code }] ...
         let lookahead = input.lookahead1();
         let (source, srcpath) = if lookahead.peek(LitStr) {
             let src = TraitProvider::File(input.parse()?);
@@ -53,36 +61,46 @@ impl Parse for ClientArgs {
         // for Type ...
         input.parse::<Token![for]>()?;
         let target: Type = input.parse()?;
-        // in adapter
+        // in adapter ...
         input.parse::<Token![in]>()?;
         let adapter: Ident = input.parse()?;
-        // [(args)]
-        let extargs = if !input.is_empty() {
+        // [(args)] ...
+        let extargs = if input.peek(syn::token::Paren) {
             let argbuf;
             parenthesized!(argbuf in input);
             Some(argbuf.step(|cursor| Ok((cursor.token_stream(), Cursor::empty())))?)
         } else {
             None
         };
+        // [where predicates]
+        let predicates = if input.peek(Token![where]) {
+            Some(input.parse()?)
+        } else {
+            None
+        };
         Ok(Self {
+            generics,
             adapter,
             source,
             srcpath,
             modpath,
             target,
             extargs,
+            predicates,
         })
     }
 }
 
 pub fn inject_implement_impl(args: TokenStream) -> TokenStream {
     let ClientArgs {
+        generics,
         adapter,
         source,
         srcpath,
         modpath,
         target,
         extargs,
+        predicates,
     } = match syn::parse2(args) {
         Ok(val) => val,
         Err(e) => return e.into_compile_error(),
@@ -111,7 +129,7 @@ pub fn inject_implement_impl(args: TokenStream) -> TokenStream {
     let modpath = modpath.unwrap_or(srcpath);
 
     quote! {
-        impl #modpath for #target {
+        impl #generics #modpath for #target #predicates {
             #(#content)*
         }
     }
@@ -201,12 +219,14 @@ mod tests {
     fn parsing() {
         use super::ClientArgs;
         let ClientArgs {
+            generics: _,
             adapter,
             source,
             srcpath,
             modpath,
             target,
             extargs,
+            predicates: _,
         } = syn::parse2::<ClientArgs>(quote! { impl "fname"::path::T as U::V for A::B<R<I = J>> in func(d) }).unwrap();
         assert_eq!(adapter, "func");
         assert_eq!(extargs.unwrap().to_string(), quote! { d }.to_string());
@@ -227,7 +247,7 @@ mod tests {
             Ok(_) => panic!("Shouldn't pass compilation!"),
             Err(e) => assert_eq!(
                 e.to_compile_error().to_string(),
-                quote! { compile_error! { "expected parentheses" } }.to_string()
+                quote! { compile_error! { "unexpected token" } }.to_string()
             ),
         }
     }
@@ -241,7 +261,7 @@ mod tests {
         }
         verify! {
             {
-                impl {
+                impl<'a, T: 'a + Orz> {
                     trait TestTrait {
                         fn f1(self, a1: i32) -> i64;
                         fn f2(&mut self);
@@ -249,7 +269,7 @@ mod tests {
                 } as Pathed::TestTrait for Pathed::TestStruct<U, R> in empty
             },
             {
-                impl Pathed::TestTrait for Pathed::TestStruct<U, R> {
+                impl<'a, T: 'a + Orz> Pathed::TestTrait for Pathed::TestStruct<U, R> {
                     empty!(fn f1(self, a1: i32) -> i64;);
                     empty!(fn f2(&mut self););
                 }
@@ -261,10 +281,10 @@ mod tests {
                     trait T {
                         fn f();
                     }
-                } for T in pr(a impl b)
+                } as UR<Orz, P = R> for T in pr(a impl b) where T: QAQ
             },
             {
-                impl T for T {
+                impl UR<Orz, P = R> for T where T: QAQ {
                     pr!(a impl b; fn f(););
                 }
             }

@@ -27,9 +27,13 @@ The path of the source trait will be relative to the source file where the macro
 
 Grammar:
 ```text
-inject_implement!(impl [{ trait Definition {} } | "path/to/definition/file"::Trait::Path]
-    [as Actual::Trait::Path] for TargetClient in adapter[(args)]);
+inject_implement!(impl[<Generics>] [{ trait Definition {} }
+        | "path/to/definition/file"::Trait::Path]
+    [as Actual::Trait::Path<Args>] for TargetClient in adapter[(args)]
+    [where Other: Predicate + Clause]);
 ```
+
+For a concrete usage example, see [the example in frincoe-rpc](../frincoe_rpc/index.html#example).
 
 The adapter must be a macro (usually proc macro),
 for each trait item (constant, type, or function), it will be invoked once,
@@ -42,9 +46,6 @@ If omitted, it will be inferred to be the same as the its path in the definition
 or the name in the definition.
 Unfortunately, the definition of the trait is needed however,
 or there's no way to know the items of the trait.
-
-Currently the trait can only be a bare trait without any qualifications,
-this may be solved in later versions.
 */
 #[proc_macro]
 pub fn inject_implement(args: TokenStream) -> TokenStream {
