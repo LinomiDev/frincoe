@@ -26,7 +26,7 @@ Inject the implement of a trait to a type using specified adapter.
 The path of the source trait will be relative to the source file where the macro is invoked.
 
 Grammar:
-```ignore
+```text
 inject_implement!(impl [{ trait Definition {} } | "path/to/definition/file"::Trait::Path]
     [as Actual::Trait::Path] for TargetClient in adapter[(args)]);
 ```

@@ -13,7 +13,7 @@ For clients, procedure calls are direct: they act the same as normal methods.
 But for a provider, it may be either passive or active to clients.
 A passive provider is also the same as normal structs:
 all procedure calls are automatically delivered to corresponding method implements.
-And an active provider is like a server,
+And an active provider is like a server (see also [`Server`]),
 which needs to manually fetch the incoming responses (see also [`FetchCall`])
 and dispatch it to the correct method (see also [`Dispatcher`]).
 Passive providers are for 'local' calls, like interthreadical calls,
@@ -58,9 +58,9 @@ impl<T> Connection for DirectCall<T> {
 
 inject_implement! {
     impl {
-            trait SayHello {
-                fn hello(&self, name: &str) -> String;
-            }
+        trait SayHello {
+            fn hello(&self, name: &str) -> String;
+        }
     } for DirectCall<HelloProvider> in forward_sub(data)
 }
 
@@ -94,7 +94,7 @@ pub trait Connection {
 }
 
 /**
-Serve on some address to accept incoming connections.
+Serve on some address to accept incoming connections, used for active providers.
 */
 pub trait Server: Sized {
     /// The address to listen on

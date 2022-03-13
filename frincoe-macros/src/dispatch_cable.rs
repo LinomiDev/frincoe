@@ -50,13 +50,13 @@ pub fn dispatch_cable_impl(args: TokenStream) -> TokenStream {
     };
     let body = match output {
         ReturnType::Default => quote! {
-            for it in self.iter() {
+            for it in self.iter_child() {
                 it.#ident(#(#args),*);
             }
         },
         ReturnType::Type(_, ty) => quote! {
             let mut res: #ty = Default::default();
-            for it in self.iter() {
+            for it in self.iter_child() {
                 res.extend(it.#ident(#(#args),*));
             }
             res
@@ -103,7 +103,7 @@ mod tests {
                 const async unsafe extern "C" fn f(mut self: Pin<Self>, x: i32, y: i32, z: i32) -> Vec<i32>
                     where Vec<i32>: Extend<Vec<i32> > + Default {
                     let mut res: Vec<i32> = Default::default();
-                    for it in self.iter() {
+                    for it in self.iter_child() {
                         res.extend(it.f(x, y, z));
                     }
                     res
@@ -117,7 +117,7 @@ mod tests {
             quote! {
                 fn f(&mut self) -> T where T: Extend<T> + Default {
                     let mut res: T = Default::default();
-                    for it in self.iter() {
+                    for it in self.iter_child() {
                         res.extend(it.f());
                     }
                     res
@@ -130,7 +130,7 @@ mod tests {
             dispatch_cable_impl(quote! { fn f(self); }).to_string(),
             quote! {
                 fn f(self) {
-                    for it in self.iter() {
+                    for it in self.iter_child() {
                         it.f();
                     }
                 }
