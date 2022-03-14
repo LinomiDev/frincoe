@@ -138,7 +138,7 @@ pub trait Dispatcher {
     type Response;
     /// Dispatch the request to functions according to their types,
     /// returning respective response.
-    fn dispatch(request: Self::Request) -> Self::Response;
+    fn dispatch(&mut self, request: Self::Request) -> Self::Response;
 }
 
 

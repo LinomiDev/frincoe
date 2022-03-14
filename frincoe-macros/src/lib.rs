@@ -55,6 +55,45 @@ pub fn inject_implement(args: TokenStream) -> TokenStream {
 
 
 
+mod make_dispatcher;
+use make_dispatcher::make_dispatcher_impl;
+
+/**
+Implement [`Dispatcher`] of given trait for target provider.
+
+[`Dispatcher`]: ../frincoe_rpc/trait.Dispatcher.html
+
+The path of the source trait will be relative to the source file where the macro is invoked.
+
+Grammar:
+```text
+make_dispatcher!(impl[<Generics>]
+    [{ trait definition {} } |"path/to/definition/file"::Trait::Path]
+    [as Actual::Trait::Path] for TargetProvider [as RequestType -> ResponseType]
+    [where Other: Predicate + Clause]);
+```
+
+If the actual trait path is not present, the path in its source file will be used.
+Unfortunately, the definition of the trait is needed however,
+or there's no way to know the items of the trait.
+
+The `RequestType` and `ResponseType` are the corresponding associated types of [`Dispatcher`].
+If not present, their name will be generated from the provider's name,
+e.g. `TargetProviderRequest` and `TargetProviderResponse`.
+
+Each method `fn some_method(arg1: Type1, arg2: Type2) -> ReturnType` in the trait
+will be generated an entry in `RequestType` as `SomeMethod(Type1, Type2)`,
+and an entry in `ResponseType` as `SomeMethod(ReturnType)`
+(transform the name into pascal case, and split the types into request and response types respectively);
+and a match hand in `dispatch` function calling the implement in provider will be generated.
+*/
+#[proc_macro]
+pub fn make_dispatcher(args: TokenStream) -> TokenStream {
+    make_dispatcher_impl(args.into()).into()
+}
+
+
+
 mod dispatch_sub;
 use dispatch_sub::dispatch_sub_impl;
 

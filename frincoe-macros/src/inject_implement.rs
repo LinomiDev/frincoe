@@ -81,7 +81,7 @@ pub fn inject_implement_impl(args: TokenStream) -> TokenStream {
     // Generate the injecting content
     let spec = match spec.get_trait() {
         Some(content) => content,
-        None => return quote! { compile_error!("") },
+        None => return quote! { compile_error!("not found the target trait") },
     };
     let content = spec
         .items
