@@ -2,14 +2,20 @@
 
 ## Workflow
 
-Don't commit on the main branch: it's for minor version advancing;
-instead, commit on dev branch for corresponding version.
+Don't commit on the `root`, `release-*` and old `dev-*` branches:
+they are just anchors for development, and will no longer be updated except for bug fixes;
+instead, commit on the latest `dev-*` branch.
+And when creating a release, create the corresponding branch or select an existing release branch,
+and rebase the content of current dev branch onto it.
+For each version, a new dev branch will be created
+by rebasing the latest release branch onto the root branch.
 
 Commit messages should follow the format `verb component: description`,
 where the component use `/` as path separator,
 and can be omitted when it's hard to summarize >\_\<.
 Possible verbs are:
 
+- `rel`: A new release, for `release-*` branches only.
 - `feat`: A new feature is added,
   either by extending an existing component or adding a new component.
 - `doc`: More document is added;
@@ -74,4 +80,4 @@ For macros, keep them within a line if possible;
 otherwise, since most of them adopt rust-like syntax,
 format them as how `rustfmt` format normal rust code.
 
-[//modeline]: vim: spell nofoldenable
+[//modeline]: random:// " vim:set spell nofoldenable: "
