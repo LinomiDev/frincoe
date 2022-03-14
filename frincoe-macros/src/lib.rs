@@ -9,6 +9,7 @@ See [the document of frincoe-rpc](../frincoe_rpc/index.html) for detailed docume
 #![feature(proc_macro_expand)]
 #![feature(doc_cfg)]
 #![feature(extend_one)]
+#![feature(lint_reasons)]
 
 
 

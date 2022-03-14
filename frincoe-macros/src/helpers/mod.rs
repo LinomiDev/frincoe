@@ -6,6 +6,7 @@ use syn::{Attribute, FnArg, Generics, Ident, LitStr, Pat, PatType, ReturnType, S
 
 
 
+/// Check if a function argument is `self`
 pub fn is_self(arg: &FnArg) -> bool {
     match arg {
         FnArg::Receiver(_) => true,
@@ -26,6 +27,7 @@ pub fn is_self(arg: &FnArg) -> bool {
 
 
 
+/// The extracted signature
 pub struct ExtractedSignature {
     pub modifiers: TokenStream,
     pub ident: Ident,
@@ -34,6 +36,7 @@ pub struct ExtractedSignature {
     pub output: ReturnType,
 }
 
+/// Extract a function signature for easy use.
 pub fn extract_signature(attrs: Vec<Attribute>, sig: Signature) -> ExtractedSignature {
     let mut modifiers = quote! { #(#attrs)* };
     if sig.constness.is_some() {
@@ -56,5 +59,28 @@ pub fn extract_signature(attrs: Vec<Attribute>, sig: Signature) -> ExtractedSign
         generics: sig.generics,
         inputs: sig.inputs,
         output: sig.output,
+    }
+}
+
+
+
+mod read_trait;
+pub use read_trait::*;
+
+
+
+#[cfg(test)]
+mod tests {
+    use quote::quote;
+
+    use super::is_self;
+
+    #[test]
+    fn check_self() -> syn::Result<()> {
+        assert!(is_self(&syn::parse2(quote! { self })?));
+        assert!(is_self(&syn::parse2(quote! { &self })?));
+        assert!(is_self(&syn::parse2(quote! { &mut self })?));
+        assert!(is_self(&syn::parse2(quote! { mut self: &'a mut Pin<Box<Self>> })?));
+        Ok(())
     }
 }
