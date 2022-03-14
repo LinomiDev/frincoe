@@ -1,5 +1,5 @@
 use frincoe::cable::{ArrayCable, Bundle, Cable};
-use frincoe_macros::{dispatch_cable, inject_implement};
+use frincoe_macros::{dispatch_sub, inject_implement};
 use frincoe_rpc::Connection;
 
 
@@ -72,7 +72,7 @@ inject_implement! {
                 format!("bye {}", name)
             }
         }
-    } as Greet for ArrayCable<VaryGreet> in dispatch_cable
+    } as Greet for ArrayCable<VaryGreet> in dispatch_sub
 }
 
 inject_implement! {
@@ -81,7 +81,7 @@ inject_implement! {
             fn hello(&mut self, name: &str) -> Bundle<String>;
             fn bye(&mut self, name: &str) -> Bundle<String>;
         }
-    } as Greet for ArrayCable<&mut dyn Greet> in dispatch_cable
+    } as Greet for ArrayCable<&mut dyn Greet> in dispatch_sub
 }
 
 

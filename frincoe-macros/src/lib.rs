@@ -27,8 +27,8 @@ The path of the source trait will be relative to the source file where the macro
 
 Grammar:
 ```text
-inject_implement!(impl[<Generics>] [{ trait Definition {} }
-        | "path/to/definition/file"::Trait::Path]
+inject_implement!(impl[<Generics>]
+    [{ trait Definition {} } | "path/to/definition/file"::Trait::Path]
     [as Actual::Trait::Path<Args>] for TargetClient in adapter[(args)]
     [where Other: Predicate + Clause]);
 ```
@@ -54,8 +54,8 @@ pub fn inject_implement(args: TokenStream) -> TokenStream {
 
 
 
-mod dispatch_cable;
-use dispatch_cable::dispatch_cable_impl;
+mod dispatch_sub;
+use dispatch_sub::dispatch_sub_impl;
 
 /**
 Adapter for [`inject_implement!`] to make passive [`Cable`]s.
@@ -75,8 +75,8 @@ and document of [`Cable`] for on which the adapter is used.
 #[cfg(feature = "adapters")]
 #[doc(cfg(feature = "adapters"))]
 #[proc_macro]
-pub fn dispatch_cable(args: TokenStream) -> TokenStream {
-    dispatch_cable_impl(args.into()).into()
+pub fn dispatch_sub(args: TokenStream) -> TokenStream {
+    dispatch_sub_impl(args.into()).into()
 }
 
 

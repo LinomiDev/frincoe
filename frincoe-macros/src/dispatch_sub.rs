@@ -6,7 +6,7 @@ use crate::helpers::{extract_signature, is_self, ExtractedSignature};
 
 
 
-pub fn dispatch_cable_impl(args: TokenStream) -> TokenStream {
+pub fn dispatch_sub_impl(args: TokenStream) -> TokenStream {
     // Try to parse the item as a header, report other elements as errors
     let TraitItemMethod {
         attrs,
@@ -72,7 +72,7 @@ pub fn dispatch_cable_impl(args: TokenStream) -> TokenStream {
 mod tests {
     use quote::quote;
 
-    use crate::dispatch_cable_impl;
+    use crate::dispatch_sub_impl;
 
 
 
@@ -95,7 +95,7 @@ mod tests {
     fn different_decls() {
         // Modifiers, complex return type, many args, and complex form of self
         assert_eq!(
-            dispatch_cable_impl(
+            dispatch_sub_impl(
                 quote! { const async unsafe extern "C" fn f(mut self: Pin<Self>, x: i32, y: i32, z: i32) -> Vec<i32>; }
             )
             .to_string(),
@@ -113,7 +113,7 @@ mod tests {
         );
         // Simplified form of self
         assert_eq!(
-            dispatch_cable_impl(quote! { fn f(&mut self) -> T; }).to_string(),
+            dispatch_sub_impl(quote! { fn f(&mut self) -> T; }).to_string(),
             quote! {
                 fn f(&mut self) -> T where T: Extend<T> + Default {
                     let mut res: T = Default::default();
@@ -127,7 +127,7 @@ mod tests {
         );
         // Void result
         assert_eq!(
-            dispatch_cable_impl(quote! { fn f(self); }).to_string(),
+            dispatch_sub_impl(quote! { fn f(self); }).to_string(),
             quote! {
                 fn f(self) {
                     for it in self.iter_child() {
@@ -142,14 +142,14 @@ mod tests {
     #[test]
     fn errornous() {
         assert_eq!(
-            dispatch_cable_impl(quote! { fn f(s: i32); }).to_string(),
+            dispatch_sub_impl(quote! { fn f(s: i32); }).to_string(),
             quote! {
                 compile_error!("Cable methods must be object method to iterate over the clients");
             }
             .to_string(),
         );
         assert_eq!(
-            dispatch_cable_impl(quote! { fn f(); }).to_string(),
+            dispatch_sub_impl(quote! { fn f(); }).to_string(),
             quote! {
                 compile_error!("Cable methods must be object method to iterate over the clients");
             }
