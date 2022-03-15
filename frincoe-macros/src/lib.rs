@@ -78,14 +78,17 @@ Unfortunately, the definition of the trait is needed however,
 or there's no way to know the items of the trait.
 
 The `RequestType` and `ResponseType` are the corresponding associated types of [`Dispatcher`].
-If not present, their name will be generated from the provider's name,
-e.g. `TargetProviderRequest` and `TargetProviderResponse`.
+If not present, their name will be generated from the provider's name and the trait's name,
+e.g. `TargetProviderTraitRequest` and `TargetProviderTraitResponse`.
 
 Each method `fn some_method(arg1: Type1, arg2: Type2) -> ReturnType` in the trait
 will be generated an entry in `RequestType` as `SomeMethod(Type1, Type2)`,
 and an entry in `ResponseType` as `SomeMethod(ReturnType)`
-(transform the name into pascal case, and split the types into request and response types respectively);
+(transform the name into class case, and split the types into request and response types respectively);
 and a match hand in `dispatch` function calling the implement in provider will be generated.
+
+A method with `self` argument won't add `self` into the request type,
+and would be invoked with `self` of the dispatcher.
 */
 #[proc_macro]
 pub fn make_dispatcher(args: TokenStream) -> TokenStream {

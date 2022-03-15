@@ -2,12 +2,9 @@ use inflector::Inflector;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::Parse;
-use syn::spanned::Spanned;
-use syn::{
-    FnArg, Generics, Ident, Pat, ReturnType, Signature, Token, TraitItem, TraitItemMethod, Type, TypePath, WhereClause,
-};
+use syn::{FnArg, Generics, Ident, ReturnType, Token, TraitItem, Type, TypePath, WhereClause};
 
-use crate::helpers::TraitSpec;
+use crate::helpers::{is_self, TraitSpec};
 
 
 
@@ -81,69 +78,72 @@ pub fn make_dispatcher_impl(args: TokenStream) -> TokenStream {
 
     // Process the request and response type
     let mkname = |suffix| -> Type {
+        let prefix = match target {
+            Type::Path(ref path) => path
+                .path
+                .segments
+                .last()
+                .expect("the implementing target shouldn't be empty...")
+                .ident
+                .to_string(),
+            _ => panic!("this type is not supported currently"),
+        };
         let mut path = spec.name.clone();
         let item = path
             .segments
             .last_mut()
-            .expect("the implementing target shouldn't be empty...");
-        item.ident = Ident::new(&(item.ident.to_string().to_class_case() + suffix), item.ident.span());
+            .expect("the implementing trait shouldn't be empty...");
+        item.ident = Ident::new(&format!("{}{}{}", prefix, item.ident, suffix), item.ident.span());
         TypePath { qself: None, path }.into()
     };
     let request = request.unwrap_or_else(|| mkname("Request"));
     let response = response.unwrap_or_else(|| mkname("Response"));
 
-    // Process the content
-    let (names, types): (Vec<_>, Vec<_>) = spec
+    // Process the methods and arguments
+    let methods = spec.items.iter().filter_map(|item| match item {
+        TraitItem::Method(func) => Some(&func.sig.ident),
+        _ => None,
+    });
+    let variants = methods
+        .clone()
+        .map(|id| Ident::new(&id.to_string().to_class_case(), id.span()))
+        .collect::<Vec<_>>();
+    let (inputs, res_types): (Vec<_>, Vec<_>) = spec
         .items
         .iter()
         .filter_map(|item| match item {
-            TraitItem::Method(TraitItemMethod {
-                attrs: _,
-                sig:
-                    Signature {
-                        constness: _,
-                        asyncness: _,
-                        unsafety: _,
-                        abi: _,
-                        fn_token: _,
-                        ident,
-                        generics: _,
-                        paren_token: _,
-                        inputs,
-                        variadic: _,
-                        output,
-                    },
-                default: _,
-                semi_token: _,
-            }) => {
-                let (req_types, req_args): (Vec<_>, Vec<_>) = inputs
-                    .into_iter()
-                    .map(|x| match x {
-                        FnArg::Receiver(_) => (target.clone(), Ident::new("self", x.span())),
-                        FnArg::Typed(ty) => (
-                            *ty.ty.to_owned(),
-                            match &*ty.pat {
-                                Pat::Ident(id) => id.ident.to_owned(),
-                                _ => panic!("not expected"),
-                            },
-                        ),
-                    })
-                    .unzip();
-                let output = match output {
+            TraitItem::Method(func) => Some((
+                &func.sig.inputs,
+                match func.sig.output {
                     ReturnType::Default => quote! {},
-                    ReturnType::Type(_, ty) => quote! { #ty },
-                };
-                Some((
-                    (ident, Ident::new(&ident.to_string().to_class_case(), ident.span())),
-                    ((quote! { #(#req_types),* }, quote! { #(#req_args),* }), output),
-                ))
-            }
+                    ReturnType::Type(_, ref ty) => quote! { #ty },
+                },
+            )),
             _ => None,
         })
         .unzip();
-    let (methods, variants): (Vec<_>, Vec<_>) = names.into_iter().unzip();
-    let (req_items, res_types): (Vec<_>, Vec<_>) = types.into_iter().unzip();
-    let (req_types, req_args): (Vec<_>, Vec<_>) = req_items.into_iter().unzip();
+    let selfs = inputs.iter().map(|args| {
+        if args.first().map(is_self).unwrap_or(false) {
+            quote! { self. }
+        } else {
+            quote! { Self:: }
+        }
+    });
+    let (req_types, req_args): (Vec<_>, Vec<_>) = inputs
+        .iter()
+        .map(|args| {
+            let args = args
+                .iter()
+                .skip(args.first().map(|x| if is_self(x) { 1 } else { 0 }).unwrap_or(0));
+            let (types, args): (Vec<_>, Vec<_>) = args
+                .map(|item| match item {
+                    FnArg::Typed(pat) => (&pat.ty, &pat.pat),
+                    FnArg::Receiver(_) => unreachable!(),
+                })
+                .unzip();
+            (quote! { #(#types),* }, quote! { #(#args),* })
+        })
+        .unzip();
 
     quote! {
         enum #generics #request {
@@ -157,7 +157,7 @@ pub fn make_dispatcher_impl(args: TokenStream) -> TokenStream {
             type Response = #response;
             fn dispatch(&mut self, request: Self::Request) -> Self::Response {
                 match request {
-                    #(#variants(#req_args) => #methods(#req_args),)*
+                    #(#request :: #variants(#req_args) => #selfs #methods(#req_args),)*
                 }
             }
         }
@@ -187,25 +187,25 @@ mod tests {
             })
             .to_string(),
             quote! {
-                enum TRequest {
-                    F1(pathed::Struct, i32, i64),
-                    F2(Pin<Box<Self> >, i32),
+                enum StructTRequest {
+                    F1(i32, i64),
+                    F2(i32),
                     F3Snake(),
                 }
-                enum TResponse {
+                enum StructTResponse {
                     F1(Vec<i32>),
                     F2(),
                     F3Snake(Box<i32>),
                 }
                 impl frincoe_rpc::Dispatcher for pathed::Struct
                 {
-                    type Request = TRequest;
-                    type Response = TResponse;
+                    type Request = StructTRequest;
+                    type Response = StructTResponse;
                     fn dispatch(&mut self, request: Self::Request) -> Self::Response {
                         match request {
-                            F1(self, a, b) => f1(self, a, b),
-                            F2(self, u) => f2(self, u),
-                            F3Snake() => f3_snake(),
+                            StructTRequest::F1(a, b) => self.f1(a, b),
+                            StructTRequest::F2(u) => self.f2(u),
+                            StructTRequest::F3Snake() => Self::f3_snake(),
                         }
                     }
                 }
