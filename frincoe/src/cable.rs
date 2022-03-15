@@ -55,6 +55,7 @@ impl<T> Bundle<T> {
     pub fn new() -> Self {
         Self { items: vec![] }
     }
+
     /// Create a bundle with a single value
     pub fn from_single(item: impl Into<T>) -> Self {
         Self {
@@ -75,9 +76,11 @@ impl<T> Extend<Bundle<T>> for Bundle<T> {
     fn extend<R: IntoIterator<Item = Bundle<T>>>(&mut self, iter: R) {
         self.items.extend(iter.into_iter().flat_map(|x| x.items.into_iter()))
     }
+
     fn extend_one(&mut self, item: Bundle<T>) {
         self.items.extend(item.items.into_iter())
     }
+
     fn extend_reserve(&mut self, additional: usize) {
         self.items.reserve(additional);
     }
@@ -87,17 +90,20 @@ impl<T> Extend<T> for Bundle<T> {
     fn extend<R: IntoIterator<Item = T>>(&mut self, iter: R) {
         self.items.extend(iter.into_iter());
     }
+
     fn extend_one(&mut self, item: T) {
         self.items.extend_one(item);
     }
+
     fn extend_reserve(&mut self, additional: usize) {
         self.items.reserve(additional);
     }
 }
 
 impl<T> IntoIterator for Bundle<T> {
-    type Item = T;
     type IntoIter = IntoIter<T>;
+    type Item = T;
+
     fn into_iter(self) -> Self::IntoIter {
         self.items.into_iter()
     }
@@ -105,6 +111,7 @@ impl<T> IntoIterator for Bundle<T> {
 
 impl<T> Deref for Bundle<T> {
     type Target = Vec<T>;
+
     fn deref(&self) -> &Self::Target {
         &self.items
     }
@@ -169,9 +176,11 @@ impl<T, U: Into<T>> Extend<U> for ArrayCable<T> {
     fn extend<R: IntoIterator<Item = U>>(&mut self, iter: R) {
         self.child.extend(iter.into_iter().map(|x| x.into()));
     }
+
     fn extend_one(&mut self, item: U) {
         self.child.extend_one(item.into());
     }
+
     fn extend_reserve(&mut self, additional: usize) {
         self.child.reserve(additional);
     }
@@ -179,17 +188,20 @@ impl<T, U: Into<T>> Extend<U> for ArrayCable<T> {
 
 impl<T> Connection for ArrayCable<T> {
     type Error = ();
+
     fn disconnect(&self) -> Result<(), Self::Error> {
         Ok(())
     }
 }
 
 impl<'a, T: 'a> Cable<'a> for ArrayCable<T> {
-    type Client = T;
     type ChildIter = core::slice::IterMut<'a, T>;
+    type Client = T;
+
     fn iter_child(&'a mut self) -> Self::ChildIter {
         self.child.iter_mut()
     }
+
     fn add_connection(&mut self, addr: Self::Client) -> Result<(), Self::Error> {
         self.child.push(addr);
         Ok(())

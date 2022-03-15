@@ -53,6 +53,7 @@ impl Greet for CountedGreet {
         self.count += 1;
         Bundle::from_single(format!("hello #{} {}", self.count - 1, name))
     }
+
     fn bye(&mut self, name: &str) -> Bundle<String> {
         self.count += 1;
         Bundle::from_single(format!("bye #{} {}", self.count - 1, name))
